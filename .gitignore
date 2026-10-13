@@ -1,0 +1,25 @@
+*
+
+!*/
+!*.py
+!*.pyi
+!py.typed
+_version.py
+!README.md
+!pyproject.toml
+!.*ignore
+!.pre-commit-config.yaml
+!CONTRIBUTING.md
+!CODE_OF_CONDUCT.md
+!SECURITY.md
+!RELEASING.md
+!.github/**
+!.copilot/**/SKILL.md
+!benchmarks/compose.yaml
+
+# Rust native engine (source only; target/ stays ignored)
+!Cargo.toml
+!Cargo.lock
+!rust/src/*.rs
+
+!uv.lock

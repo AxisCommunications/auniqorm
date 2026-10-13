@@ -1,0 +1,28 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.4
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+  - repo: local
+    hooks:
+      # Mirror the CI Rust checks (.github/workflows/unittests.yml).
+      - id: cargo-fmt
+        name: cargo fmt (rust)
+        entry: cargo fmt --manifest-path rust/Cargo.toml --check
+        language: system
+        files: ^rust/.*\.rs$
+        pass_filenames: false
+      - id: cargo-check
+        name: cargo check (rust)
+        entry: cargo check --manifest-path rust/Cargo.toml --locked
+        language: system
+        files: ^rust/.*\.(rs|toml|lock)$
+        pass_filenames: false
+      # uv.lock must only reference the public index (a mirror URL leaks internal hosts).
+      - id: uv-lock-public-index
+        name: uv.lock uses only public index URLs
+        language: pygrep
+        entry: '(registry|url) = "https?://(?!pypi\.org/|files\.pythonhosted\.org/)'
+        files: ^uv\.lock$

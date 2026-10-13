@@ -1,0 +1,141 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+tag-pattern = "^[vR](?P<version>\\d+\\.\\d+\\.\\d+).*"
+fallback-version = "0.0.0-dev"
+
+[project]
+name = "auniqorm"
+dynamic = ["version", "dependencies"]
+description = "A lightweight Python ORM library"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{ name = "Axis Communications AB" }]
+keywords = [
+    "python",
+    "orm",
+    "asyncio",
+    "database",
+    "sql",
+    "postgresql",
+    "mysql",
+    "sqlite",
+    "rust",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+default = true
+
+[tool.uv.sources]
+auniqorm-native = { path = "rust" }
+
+[project.urls]
+Homepage = "https://github.com/AxisCommunications/auniqorm"
+Repository = "https://github.com/AxisCommunications/auniqorm.git"
+Issues = "https://github.com/AxisCommunications/auniqorm/issues"
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=4",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.0",
+    "yara-orm>=1.17",
+    "auniqorm[sqlite,pandas]"
+]
+postgres = ["asyncpg>=0.29"]
+mysql = ["aiomysql>=0.2"]
+sqlite = ["aiosqlite>=0.19"]
+pandas = ["pandas>=3.0.3"]
+benchmark = ["auniqorm[postgres,mysql,sqlite]",
+    "SQLAlchemy>=2.0",
+    "tortoise-orm>=0.24",
+    "yara-orm>=1.17",
+]
+all = ["auniqorm[postgres,mysql,sqlite,pandas]"]
+
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/auniqorm/_version.py"
+
+[tool.hatch.metadata.hooks.custom]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/auniqorm"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.pyright]
+# Pinned so the level is a property of the repo rather than each editor's
+# settings. Strict adds ~250 reportUnknown* findings from untyped third-party
+# surfaces, which would drown the actionable ones.
+typeCheckingMode = "standard"
+include = ["src/auniqorm"]
+exclude = ["tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+# Resolve the hand-written auniqorm_native.pyi stub, which lives in rust/ (its
+# canonical home, shipped in the native wheel by maturin).
+mypy_path = ["src", "rust"]
+
+# Optional runtime drivers ship no type information; absence is handled by
+# None-guards at import sites.
+[[tool.mypy.overrides]]
+module = ["asyncpg", "aiomysql", "aiosqlite", "pandas"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=auniqorm --cov-report=term-missing"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+source = ["auniqorm"]
+
+[tool.coverage.report]
+omit = [
+    # Native drivers are integration-tested separately and require either the
+    # Rust extension or an external database service.
+    "src/auniqorm/drivers/*_native.py",
+]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "except ImportError",
+    "raise NotImplementedError",
+    "pass",
+    "@abstractmethod",
+    "if __name__ == .__main__.:",
+]
