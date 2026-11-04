@@ -1,0 +1,58 @@
+name: Unit test, lint and coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: Rust checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Check formatting
+        run: cargo fmt --manifest-path rust/Cargo.toml --check
+
+      - name: Check crate
+        run: cargo check --manifest-path rust/Cargo.toml --locked
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ["3.12", "3.13", "3.14", "3.15"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+      - name: Ruff checks
+        run: uvx ruff check src tests && uvx ruff format --check src tests
+
+      - name: Install project and native extension from uv.lock
+        run: uv sync --locked --extra dev --python "${{ matrix.python-version }}"
+
+      - name: Test with pytest and coverage
+        env:
+          PYTHONUNBUFFERED: 1
+        run: uv run --no-sync python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=90 tests
