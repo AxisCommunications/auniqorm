@@ -75,7 +75,11 @@ fn run_query(
     limit: Option<usize>,
 ) -> Result<ResultSet, PyErr> {
     let mut stmt = conn.prepare_cached(sql).map_err(err)?;
-    let columns: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
+    let columns: Vec<String> = stmt
+        .column_names()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect();
     let ncol = columns.len();
     let mut out = Vec::new();
     let mut rows = stmt
