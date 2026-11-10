@@ -82,6 +82,7 @@ class _SyncRunner:
     def __init__(self) -> None:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
+        self._start_lock = threading.Lock()
 
     @classmethod
     def get(cls) -> _SyncRunner:
@@ -92,12 +93,13 @@ class _SyncRunner:
         return cls._instance
 
     def _start(self) -> None:
-        if self._loop is None or self._loop.is_closed():
-            self._loop = asyncio.new_event_loop()
-            self._thread = threading.Thread(
-                target=self._loop.run_forever, daemon=True, name="auniqorm-sync"
-            )
-            self._thread.start()
+        with self._start_lock:
+            if self._loop is None or self._loop.is_closed():
+                self._loop = asyncio.new_event_loop()
+                self._thread = threading.Thread(
+                    target=self._loop.run_forever, daemon=True, name="auniqorm-sync"
+                )
+                self._thread.start()
 
     def run(self, coro: Coroutine[Any, Any, _T]) -> _T:
         """Submit a coroutine and block until it completes.
