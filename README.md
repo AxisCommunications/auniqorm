@@ -545,19 +545,26 @@ db = Database("postgresql://app@db.internal/app?sslrootcert=/etc/ssl/db-ca.pem",
               ssl="verify-full")
 ```
 
+The default `prefer` encrypts when the server offers TLS but does not verify
+the server, so it does not protect against an active attacker. Use
+`verify-full` (or `ssl=True`) for connections that leave a trusted network.
+
 **PostgreSQL values.** Integers are range-checked and parameters must match
 the column type; nothing wraps or binds silently. Results decode to asyncpg's
 types. Values the native driver cannot represent raise instead of becoming
 `None`: `interval`, `timetz`, multi-dimensional arrays, `numeric` beyond 28
 significant digits or non-finite, and infinite or out-of-range dates.
 
-**Session state.** The native drivers do not reset a connection's session after
-each pooled statement, because that would add a round trip to every query. A
-`SET`, `SET ROLE`, temporary table, user variable, advisory or `GET_LOCK` lock,
-or `LISTEN` run as a standalone statement therefore stays on that pooled
-connection and can affect later requests. Change session-level state only
-inside a transaction (`async with await db.transaction():`) or on a pinned
-connection (`async with await db.connection():`).
+**Session state.** Only pinned connections and transactions are reset when
+they return to the pool. The native drivers do not reset the session after a
+standalone pooled statement, because that would add a round trip to every
+query. A `SET`, `SET ROLE`, temporary table, user variable, advisory or
+`GET_LOCK` lock, or `LISTEN` run as a standalone statement therefore stays on
+that pooled connection and can affect later requests, including requests for a
+different tenant or user when the pool is shared. Change session-level state
+only inside a transaction (`async with await db.transaction():`) or on a pinned
+connection (`async with await db.connection():`). Do not run `SET ROLE` or
+row-level-security settings such as `SET app.tenant_id` outside one of those.
 
 When such a connection returns to the pool, the native driver resets its
 session:

@@ -343,6 +343,8 @@ class Database:
     async def transaction(self) -> Transaction:
         """Start a new transaction.
 
+        Session state set inside the transaction does not outlive it.
+
         Returns:
             Transaction context manager
         """
@@ -352,6 +354,10 @@ class Database:
 
     async def connection(self) -> PinnedConnection:
         """Pin a connection without starting a transaction.
+
+        Use this for session-level state such as ``SET ROLE``: the native
+        drivers reset the session when the pinned connection is released,
+        while standalone statements on the pool are not reset.
 
         Returns:
             PinnedConnection context manager
