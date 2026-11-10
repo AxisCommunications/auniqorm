@@ -12,8 +12,16 @@ from auniqorm.connection import Database
 from auniqorm.models import AUniqORMBase, ModelRegistry
 
 
-async def ready(db: Database, *models: type[AUniqORMBase]) -> None:
-    """Bind models to db and create their tables."""
+async def ready(
+    db: Database, *models: type[AUniqORMBase], register: bool = False
+) -> None:
+    """Bind models to db and create their tables.
+
+    ``register=True`` re-registers module-level models the autouse fixture cleared.
+    """
+    for m in models:
+        if register:
+            ModelRegistry.register(m)
     ModelRegistry.bind(db)
     for m in models:
         await m.create_table()
