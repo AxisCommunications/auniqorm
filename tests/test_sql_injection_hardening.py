@@ -34,6 +34,8 @@ from auniqorm.models import (
 from auniqorm.pandas_io import quote_identifier, read_sql, to_sql
 from auniqorm.schema import validate_identifier
 
+from ._helpers import ready
+
 PG_URL = os.getenv(
     "AUNIQORM_TEST_PG_URL", "postgresql://bench:bench@localhost:5432/bench"
 )
@@ -59,17 +61,12 @@ def _item_model(table: str = "items") -> type[AUniqORMBase]:
     return Item
 
 
-async def _ready(db: Database, model: type[AUniqORMBase]) -> None:
-    ModelRegistry.bind(db)
-    await model.create_table()
-
-
 @pytest.fixture
 async def secrets_db(sqlite_db):
     await sqlite_db.execute("CREATE TABLE secrets (id INTEGER PRIMARY KEY, token TEXT)")
     await sqlite_db.execute("INSERT INTO secrets VALUES (1, 'sekret')")
     item = _item_model()
-    await _ready(sqlite_db, item)
+    await ready(sqlite_db, item)
     for i, name in enumerate(["alpha", "beta", "gamma"], 1):
         await item(id=i, name=name, qty=i).insert()
     return item
@@ -161,7 +158,7 @@ async def test_select_related_still_works(sqlite_db):
         author_id: int = ForeignKey("authors.id")
 
     for m in (Author, Post):
-        await _ready(sqlite_db, m)
+        await ready(sqlite_db, m)
     await Author(id=1, name="a").insert()
     await Post(id=1, author_id=1).insert()
     posts = await Post.filter(select_related=["author"], id=1, order_by="-id")
@@ -303,7 +300,7 @@ LIKE_CASES = [  # (lookup, value, expected ids)
 
 async def _check_like_cases(db: Database) -> None:
     item = _item_model(f"like_{uuid.uuid4().hex[:10]}")
-    await _ready(db, item)
+    await ready(db, item)
     try:
         rows = [
             "100% sure",
@@ -349,7 +346,7 @@ async def test_like_escaping_real_servers(real_db):
 
 async def test_f_and_order_by_real_servers(real_db):
     item = _item_model(f"f_real_{uuid.uuid4().hex[:10]}")
-    await _ready(real_db, item)
+    await ready(real_db, item)
     try:
         await item(id=1, name="a", qty=5).insert()
         await item.update_where({"qty": F("qty") * 2 - -1}, id=1)
