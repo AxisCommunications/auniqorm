@@ -58,7 +58,7 @@ dev = [
     "pytest-asyncio>=0.21",
     "pytest-cov>=4.0",
     "yara-orm>=1.17",
-    "auniqorm[sqlite,pandas,mongodb]"
+    "auniqorm[sqlite,pandas,mongodb,postgres,mysql]"
 ]
 postgres = ["asyncpg>=0.29"]
 mysql = ["aiomysql>=0.2"]

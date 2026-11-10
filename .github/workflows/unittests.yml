@@ -52,6 +52,9 @@ jobs:
       - name: Install project and native extension from uv.lock
         run: uv sync --locked --extra dev --python "${{ matrix.python-version }}"
 
+      - name: Start database services
+        run: docker compose -f benchmarks/compose.yaml up -d --wait
+
       - name: Test with pytest and coverage
         env:
           PYTHONUNBUFFERED: 1
