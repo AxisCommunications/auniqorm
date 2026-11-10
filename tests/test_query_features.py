@@ -28,43 +28,43 @@ def _safe_table(prefix, request):
 
 class TestFilterOrderBy:
     async def test_order_by_asc(self, db):
-        class TaskA(AUniqORMBase, table="tasks_a"):
+        class Task(AUniqORMBase):
             id: int = PrimaryKey()
             priority: int
 
-        await ready(db, TaskA)
-        await TaskA(priority=3).insert()
-        await TaskA(priority=1).insert()
-        await TaskA(priority=2).insert()
+        await ready(db, Task)
+        await Task(priority=3).insert()
+        await Task(priority=1).insert()
+        await Task(priority=2).insert()
 
-        results = await TaskA.filter(order_by="priority")
+        results = await Task.filter(order_by="priority")
         assert [r.priority for r in results] == [1, 2, 3]
 
     async def test_order_by_desc(self, db):
-        class TaskB(AUniqORMBase, table="tasks_b"):
+        class Task(AUniqORMBase):
             id: int = PrimaryKey()
             priority: int
 
-        await ready(db, TaskB)
-        await TaskB(priority=3).insert()
-        await TaskB(priority=1).insert()
-        await TaskB(priority=2).insert()
+        await ready(db, Task)
+        await Task(priority=3).insert()
+        await Task(priority=1).insert()
+        await Task(priority=2).insert()
 
-        results = await TaskB.filter(order_by="-priority")
+        results = await Task.filter(order_by="-priority")
         assert [r.priority for r in results] == [3, 2, 1]
 
     async def test_order_by_multi_column(self, db):
-        class TaskC(AUniqORMBase, table="tasks_c"):
+        class Task(AUniqORMBase):
             id: int = PrimaryKey()
             priority: int
             name: str
 
-        await ready(db, TaskC)
-        await TaskC(priority=1, name="b").insert()
-        await TaskC(priority=2, name="a").insert()
-        await TaskC(priority=1, name="a").insert()
+        await ready(db, Task)
+        await Task(priority=1, name="b").insert()
+        await Task(priority=2, name="a").insert()
+        await Task(priority=1, name="a").insert()
 
-        results = await TaskC.filter(order_by=["priority", "name"])
+        results = await Task.filter(order_by=["priority", "name"])
         assert [(r.priority, r.name) for r in results] == [
             (1, "a"),
             (1, "b"),
@@ -72,31 +72,31 @@ class TestFilterOrderBy:
         ]
 
     async def test_order_by_with_filter(self, db):
-        class TaskD(AUniqORMBase, table="tasks_d"):
+        class Task(AUniqORMBase):
             id: int = PrimaryKey()
             status: str
             priority: int
 
-        await ready(db, TaskD)
-        await TaskD(status="open", priority=3).insert()
-        await TaskD(status="open", priority=1).insert()
-        await TaskD(status="closed", priority=5).insert()
+        await ready(db, Task)
+        await Task(status="open", priority=3).insert()
+        await Task(status="open", priority=1).insert()
+        await Task(status="closed", priority=5).insert()
 
-        results = await TaskD.filter(status="open", order_by="-priority")
+        results = await Task.filter(status="open", order_by="-priority")
         assert len(results) == 2
         assert [r.priority for r in results] == [3, 1]
 
     async def test_order_by_string_shorthand(self, db):
-        class TaskE(AUniqORMBase, table="tasks_e"):
+        class Task(AUniqORMBase):
             id: int = PrimaryKey()
             name: str
 
-        await ready(db, TaskE)
-        await TaskE(name="c").insert()
-        await TaskE(name="a").insert()
-        await TaskE(name="b").insert()
+        await ready(db, Task)
+        await Task(name="c").insert()
+        await Task(name="a").insert()
+        await Task(name="b").insert()
 
-        results = await TaskE.filter(order_by="name")
+        results = await Task.filter(order_by="name")
         assert [r.name for r in results] == ["a", "b", "c"]
 
 
@@ -105,42 +105,42 @@ class TestFilterOrderBy:
 
 class TestFilterLimitOffset:
     async def test_limit(self, db):
-        class NumA(AUniqORMBase, table="nums_a"):
+        class Num(AUniqORMBase):
             id: int = PrimaryKey()
             val: int
 
-        await ready(db, NumA)
+        await ready(db, Num)
         for i in range(10):
-            await NumA(val=i).insert()
+            await Num(val=i).insert()
 
-        results = await NumA.filter(order_by="val", limit=3)
+        results = await Num.filter(order_by="val", limit=3)
         assert len(results) == 3
         assert [r.val for r in results] == [0, 1, 2]
 
     async def test_offset(self, db):
-        class NumB(AUniqORMBase, table="nums_b"):
+        class Num(AUniqORMBase):
             id: int = PrimaryKey()
             val: int
 
-        await ready(db, NumB)
+        await ready(db, Num)
         for i in range(10):
-            await NumB(val=i).insert()
+            await Num(val=i).insert()
 
-        results = await NumB.filter(order_by="val", limit=3, offset=5)
+        results = await Num.filter(order_by="val", limit=3, offset=5)
         assert len(results) == 3
         assert [r.val for r in results] == [5, 6, 7]
 
     async def test_limit_with_filter(self, db):
-        class NumC(AUniqORMBase, table="nums_c"):
+        class Num(AUniqORMBase):
             id: int = PrimaryKey()
             val: int
             grp: str
 
-        await ready(db, NumC)
+        await ready(db, Num)
         for i in range(6):
-            await NumC(val=i, grp="a" if i % 2 == 0 else "b").insert()
+            await Num(val=i, grp="a" if i % 2 == 0 else "b").insert()
 
-        results = await NumC.filter(grp="a", order_by="val", limit=2)
+        results = await Num.filter(grp="a", order_by="val", limit=2)
         assert len(results) == 2
         assert [r.val for r in results] == [0, 2]
 
@@ -150,36 +150,36 @@ class TestFilterLimitOffset:
 
 class TestCount:
     async def test_count_all(self, db):
-        class ItemA(AUniqORMBase, table="items_a"):
+        class Item(AUniqORMBase):
             id: int = PrimaryKey()
             name: str
 
-        await ready(db, ItemA)
-        await ItemA(name="a").insert()
-        await ItemA(name="b").insert()
-        await ItemA(name="c").insert()
+        await ready(db, Item)
+        await Item(name="a").insert()
+        await Item(name="b").insert()
+        await Item(name="c").insert()
 
-        assert await ItemA.count() == 3
+        assert await Item.count() == 3
 
     async def test_count_filtered(self, db):
-        class ItemB(AUniqORMBase, table="items_b"):
+        class Item(AUniqORMBase):
             id: int = PrimaryKey()
             status: str
 
-        await ready(db, ItemB)
-        await ItemB(status="open").insert()
-        await ItemB(status="open").insert()
-        await ItemB(status="closed").insert()
+        await ready(db, Item)
+        await Item(status="open").insert()
+        await Item(status="open").insert()
+        await Item(status="closed").insert()
 
-        assert await ItemB.count(status="open") == 2
-        assert await ItemB.count(status="closed") == 1
+        assert await Item.count(status="open") == 2
+        assert await Item.count(status="closed") == 1
 
     async def test_count_empty(self, db):
-        class ItemC(AUniqORMBase, table="items_c"):
+        class Item(AUniqORMBase):
             id: int = PrimaryKey()
 
-        await ready(db, ItemC)
-        assert await ItemC.count() == 0
+        await ready(db, Item)
+        assert await Item.count() == 0
 
 
 # ── exists() ─────────────────────────────────────────────────────────────────
@@ -187,31 +187,31 @@ class TestCount:
 
 class TestExists:
     async def test_exists_true(self, db):
-        class ThingA(AUniqORMBase, table="things_a"):
+        class Thing(AUniqORMBase):
             id: int = PrimaryKey()
             name: str
 
-        await ready(db, ThingA)
-        await ThingA(name="x").insert()
+        await ready(db, Thing)
+        await Thing(name="x").insert()
 
-        assert await ThingA.exists(name="x") is True
+        assert await Thing.exists(name="x") is True
 
     async def test_exists_false(self, db):
-        class ThingB(AUniqORMBase, table="things_b"):
+        class Thing(AUniqORMBase):
             id: int = PrimaryKey()
             name: str
 
-        await ready(db, ThingB)
-        assert await ThingB.exists(name="nope") is False
+        await ready(db, Thing)
+        assert await Thing.exists(name="nope") is False
 
     async def test_exists_no_filter(self, db):
-        class ThingC(AUniqORMBase, table="things_c"):
+        class Thing(AUniqORMBase):
             id: int = PrimaryKey()
 
-        await ready(db, ThingC)
-        assert await ThingC.exists() is False
-        await ThingC(id=1).insert()
-        assert await ThingC.exists() is True
+        await ready(db, Thing)
+        assert await Thing.exists() is False
+        await Thing(id=1).insert()
+        assert await Thing.exists() is True
 
 
 # ── RawSQL update ────────────────────────────────────────────────────────────
