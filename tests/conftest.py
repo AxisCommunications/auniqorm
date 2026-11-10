@@ -27,6 +27,26 @@ from auniqorm.connection import Database
 from auniqorm.drivers import BaseDriver
 from auniqorm.models import ModelRegistry
 
+from ._services import SERVICES, available
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    for name in SERVICES:
+        config.addinivalue_line(
+            "markers", f"{name}: skipped unless the compose service is reachable"
+        )
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    # Probed here, not at import, so collection never waits on a missing server.
+    for item in items:
+        for name in SERVICES:
+            if item.get_closest_marker(name) and not available(name):
+                item.add_marker(
+                    pytest.mark.skip(reason=f"requires the {name[6:]} compose service")
+                )
+
+
 # ---------------------------------------------------------------------------
 # DialectDriver — translates PG / MySQL SQL into SQLite SQL
 # ---------------------------------------------------------------------------

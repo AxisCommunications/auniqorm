@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-import socket
 import threading
 import time
 import uuid
@@ -20,8 +19,7 @@ from auniqorm import Database
 from auniqorm.exceptions import ConnectionError, QueryError
 from auniqorm.sync import SyncDatabase
 
-PG_URL = "postgresql://bench:bench@localhost:5432/bench"
-MYSQL_URL = "mysql://bench:bench@localhost:3306/bench"
+from ._services import MYSQL_URL, PG_URL, reachable
 
 # (id, url or None for a temporary SQLite file, env switch, native, module, port)
 DRIVERS = [
@@ -34,19 +32,11 @@ DRIVERS = [
 ]
 
 
-def _reachable(port: int) -> bool:
-    try:
-        socket.create_connection(("localhost", port), timeout=0.5).close()
-    except OSError:
-        return False
-    return True
-
-
 def _configure(param, monkeypatch, tmp_path) -> str:
     _, url, env, native, module, port = param
     if importlib.util.find_spec(module) is None:
         pytest.skip(f"{module} is not installed")
-    if port is not None and not _reachable(port):
+    if port is not None and not reachable(port):
         pytest.skip(f"no database server on localhost:{port}")
     monkeypatch.setenv(env, "1" if native else "0")
     return url or f"sqlite:///{tmp_path / 'isolation.db'}"

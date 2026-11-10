@@ -15,32 +15,15 @@ server is reachable (the benchmark compose stack:
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
-auniqorm_native = pytest.importorskip("auniqorm_native")
+pytest.importorskip("auniqorm_native")
 
 from auniqorm.drivers.mysql_native import MySQLNativeDriver  # noqa: E402
 
-MYSQL_URL = "mysql://bench:bench@localhost:3306/bench"
+from ._services import MYSQL_URL  # noqa: E402
 
-
-def _mysql_available() -> bool:
-    async def _check() -> bool:
-        try:
-            engine = await auniqorm_native.connect_mysql(MYSQL_URL)
-        except Exception:
-            return False
-        await engine.close()
-        return True
-
-    return asyncio.run(_check())
-
-
-pytestmark = pytest.mark.skipif(
-    not _mysql_available(), reason="requires a reachable MySQL at localhost:3306"
-)
+pytestmark = pytest.mark.needs_mysql
 
 
 @pytest.fixture
