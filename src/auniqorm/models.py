@@ -81,8 +81,21 @@ class F:
     __slots__ = ("_expr", "_refs")
 
     def __init__(self, column: str) -> None:
-        self._expr = column
-        self._refs: tuple[str, ...] = (column,)
+        object.__setattr__(self, "_expr", column)
+        object.__setattr__(self, "_refs", (column,))
+
+    @classmethod
+    def _make(cls, expr: str, refs: tuple[str, ...]) -> F:
+        result = cls.__new__(cls)
+        object.__setattr__(result, "_expr", expr)
+        object.__setattr__(result, "_refs", refs)
+        return result
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise AttributeError("F expressions are immutable")
+
+    def __delattr__(self, name: str) -> None:
+        raise AttributeError("F expressions are immutable")
 
     def to_sql(self) -> str:
         return self._expr
@@ -115,26 +128,17 @@ class F:
         return self._binop("%", other)
 
     def __neg__(self) -> F:
-        result = F.__new__(F)
-        result._expr = f"-({self._expr})"
-        result._refs = self._refs
-        return result
+        return F._make(f"-({self._expr})", self._refs)
 
     def _binop(self, op: str, other: F | int | float) -> F:
-        result = F.__new__(F)
         if isinstance(other, F):
-            result._expr = f"({self._expr} {op} {other._expr})"
-            result._refs = self._refs + other._refs
-        else:
-            result._expr = f"({self._expr} {op} {_f_literal(other)})"
-            result._refs = self._refs
-        return result
+            return F._make(
+                f"({self._expr} {op} {other._expr})", self._refs + other._refs
+            )
+        return F._make(f"({self._expr} {op} {_f_literal(other)})", self._refs)
 
     def _rbinop(self, op: str, other: int | float) -> F:
-        result = F.__new__(F)
-        result._expr = f"({_f_literal(other)} {op} {self._expr})"
-        result._refs = self._refs
-        return result
+        return F._make(f"({_f_literal(other)} {op} {self._expr})", self._refs)
 
     def __repr__(self) -> str:
         return f"F({self._expr!r})"
@@ -228,22 +232,26 @@ class Q:
     OR = "OR"
     AND = "AND"
 
-    __slots__ = ("children", "connector", "kwargs")
+    __slots__ = ("children", "_connector", "kwargs")
 
     def __init__(self, *args: Q, **kwargs: Any) -> None:
         self.children: list[Q] = list(args)
         self.kwargs: dict[str, Any] = kwargs
-        self.connector: str = self.AND
+        self._connector: str = self.AND
+
+    @property
+    def connector(self) -> str:
+        return self._connector
 
     def __or__(self, other: Q) -> Q:
         node = Q()
-        node.connector = self.OR
+        node._connector = self.OR
         node.children = [self, other]
         return node
 
     def __and__(self, other: Q) -> Q:
         node = Q()
-        node.connector = self.AND
+        node._connector = self.AND
         node.children = [self, other]
         return node
 
@@ -353,7 +361,7 @@ class ManyToMany:
         source_fk: str | None = None,
         target_fk: str | None = None,
     ) -> None:
-        self._target_table = target
+        self._target_table = validate_identifier(target, "target table", 2)
         self._through_table = validate_identifier(through, "through table", 2)
         self._source_fk = source_fk and validate_identifier(source_fk, "source_fk")
         self._target_fk = target_fk and validate_identifier(target_fk, "target_fk")
@@ -797,6 +805,12 @@ class AUniqORMBaseMeta(msgspec.StructMeta):
         __database__: Database | None
         __query_fields__: frozenset[str]
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        # Table names are interpolated into SQL, so check them on every write.
+        if name == "__table_name__" and value != "":
+            validate_identifier(value, "table name", 2)
+        super().__setattr__(name, value)
+
     def __getattribute__(self, name: str) -> Any:
         if name == "__database__":
             database = ModelRegistry.get_database()
@@ -896,15 +910,13 @@ class AUniqORMBaseMeta(msgspec.StructMeta):
         # Set table name
         s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", name)
         s = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", s)
-        cls.__table_name__ = s.lower() + "s"
-        if table:
-            if table == cls.__table_name__:
-                logger.warning(
-                    f"Table name '{table}' is the same as the default"
-                    f" generated name. Consider omitting the 'table' argument."
-                )
-            cls.__table_name__ = table
-        validate_identifier(cls.__table_name__, "table name", 2)
+        default_table = s.lower() + "s"
+        if table and table == default_table:
+            logger.warning(
+                f"Table name '{table}' is the same as the default"
+                f" generated name. Consider omitting the 'table' argument."
+            )
+        cls.__table_name__ = table or default_table
 
         cls.__database__ = None
 
@@ -1745,6 +1757,8 @@ class AUniqORMBase(
         if len(parts) == 1:
             return parts[0], values, idx
 
+        if q.connector not in (Q.AND, Q.OR):
+            raise ValueError(f"Invalid Q connector {q.connector!r}")
         joined = f" {q.connector} ".join(parts)
         return f"({joined})", values, idx
 
