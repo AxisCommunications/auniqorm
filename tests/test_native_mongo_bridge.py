@@ -26,27 +26,14 @@ auniqorm_native = pytest.importorskip("auniqorm_native")
 from auniqorm import Database, QueryError  # noqa: E402
 from auniqorm.sync import SyncDatabase  # noqa: E402
 
-MONGO_URL = "mongodb://localhost:27017/auniqorm_bridge_it"
+from ._services import MONGO_URL  # noqa: E402
 
-
-def _mongo_available() -> bool:
-    async def _check() -> bool:
-        try:
-            engine = await auniqorm_native.connect_mongo(
-                MONGO_URL, "auniqorm_bridge_it"
-            )
-        except Exception:
-            return False
-        await engine.close()
-        return True
-
-    return hasattr(auniqorm_native, "Bridge") and asyncio.run(_check())
-
-
-pytestmark = pytest.mark.skipif(
-    not _mongo_available(),
-    reason="requires the native bridge and a reachable MongoDB at localhost:27017",
-)
+pytestmark = [
+    pytest.mark.needs_mongo,
+    pytest.mark.skipif(
+        not hasattr(auniqorm_native, "Bridge"), reason="native bridge not built"
+    ),
+]
 
 
 @pytest.fixture
