@@ -13,14 +13,9 @@ import re
 import pytest
 
 from auniqorm.columns import Column, PrimaryKey
-from auniqorm.models import AUniqORMBase, ModelRegistry, Q, RawSQL
+from auniqorm.models import AUniqORMBase, Q, RawSQL
 
-
-async def ready(db, *models):
-    """Bind models to db and create their tables."""
-    ModelRegistry.bind(db)
-    for m in models:
-        await m.create_table()
+from ._helpers import ready
 
 
 def _safe_table(prefix, request):

@@ -382,18 +382,6 @@ class DialectDriver(BaseDriver):
 
 
 # ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
-
-
-async def ready(db: Database, *models: type) -> None:
-    """Bind models to db and create their tables."""
-    ModelRegistry.bind(db)
-    for m in models:
-        await m.create_table()
-
-
-# ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
