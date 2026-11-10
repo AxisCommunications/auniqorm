@@ -16,9 +16,10 @@ from auniqorm.models import (
     Count,
     Max,
     Min,
-    ModelRegistry,
     Sum,
 )
+
+from ._helpers import ready
 
 
 class Order(AUniqORMBase):
@@ -31,9 +32,7 @@ class Order(AUniqORMBase):
 @pytest.fixture
 async def seeded_db(db):
     """Create table and seed data."""
-    ModelRegistry.register(Order)
-    ModelRegistry.bind(db)
-    await Order.create_table()
+    await ready(db, Order, register=True)
 
     await Order(status="completed", amount=100.0, customer_id=1).insert()
     await Order(status="completed", amount=200.0, customer_id=1).insert()
