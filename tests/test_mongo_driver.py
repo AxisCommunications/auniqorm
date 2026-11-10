@@ -173,8 +173,8 @@ async def test_json_execute_uses_native_bson_path(monkeypatch, mongo_client) -> 
         pytest.param(
             '{"operation":"update_one","collection":"users","filter":{},'
             '"update":{"$set":{"a":1}}}',
-            {"comment": "x"},
-            {"comment": "x"},
+            {"upsert": True},
+            {"upsert": True},
             id="mapping-values",
         ),
     ],
