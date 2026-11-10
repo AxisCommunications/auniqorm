@@ -11,6 +11,7 @@ from collections.abc import AsyncIterator
 from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any
 
+from auniqorm._files import create_private_file
 from auniqorm.drivers import BaseDriver
 from auniqorm.exceptions import QueryError
 
@@ -79,6 +80,7 @@ class SQLiteDriver(BaseDriver):
             return
 
         db_path = self._get_db_path()
+        create_private_file(db_path)
         self._db = await aiosqlite.connect(db_path, **self._options)
         self._db.row_factory = aiosqlite.Row
         # Enable WAL mode for better concurrent write performance
