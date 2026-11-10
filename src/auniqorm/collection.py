@@ -36,6 +36,9 @@ from auniqorm.exceptions import BulkWriteError
 if TYPE_CHECKING:
     from auniqorm.connection import Database
 
+# Bounds how many documents a cursor batch may buffer in memory.
+MAX_BATCH_SIZE = 100_000
+
 Document = Mapping[str, Any]
 Sort = str | Mapping[str, int] | Sequence[tuple[str, int]]
 Keys = str | Mapping[str, Any] | Sequence[tuple[str, Any]]
@@ -512,6 +515,8 @@ class Collection:
         """Stream documents matching *where* in lists of up to *batch_size*."""
         if batch_size < 1:
             raise ValueError("batch_size must be at least 1")
+        if batch_size > MAX_BATCH_SIZE:
+            raise ValueError(f"batch_size must be at most {MAX_BATCH_SIZE}")
         command = self._find_command(
             "find",
             where,
