@@ -14,8 +14,6 @@ itself needs no server).
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -27,14 +25,13 @@ from auniqorm.exceptions import QueryError  # noqa: E402
 
 
 @pytest.fixture
-async def driver():
-    tmp = Path(tempfile.mkdtemp()) / "native.db"
-    drv = SQLiteNativeDriver(f"sqlite:///{tmp}")
+async def driver(tmp_path):
+    drv = SQLiteNativeDriver(f"sqlite:///{tmp_path / 'native.db'}")
     await drv.connect()
-    await drv.execute(
-        "CREATE TABLE t (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT, n INTEGER)"
-    )
     try:
+        await drv.execute(
+            "CREATE TABLE t (id INTEGER PRIMARY KEY AUTOINCREMENT, v TEXT, n INTEGER)"
+        )
         yield drv
     finally:
         await drv.disconnect()
