@@ -23,11 +23,9 @@ if TYPE_CHECKING:
 
     from auniqorm.connection import Database
 
+from auniqorm.schema import quote_identifier
 
-def quote_identifier(name: object, dialect: str) -> str:
-    """Quote *name* as pandas does: backticks on MySQL, double quotes elsewhere."""
-    q = "`" if dialect == "mysql" else '"'
-    return q + str(name).replace(q, q + q) + q
+__all__ = ["quote_identifier", "read_sql", "to_sql"]
 
 
 async def read_sql(

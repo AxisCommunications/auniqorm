@@ -869,9 +869,6 @@ class AUniqORMBaseMeta(msgspec.StructMeta):
             elif isinstance(value, type) and issubclass(value, (list, dict, set)):
                 # A mutable container type used as factory (e.g. ``list``)
                 namespace[field_name] = Column(default_factory=value)
-            elif isinstance(value, str) and "()" in value:
-                # String that looks like a SQL expression → server_default
-                namespace[field_name] = Column(server_default=value)
             else:
                 # Plain scalar default
                 namespace[field_name] = Column(default=value)
