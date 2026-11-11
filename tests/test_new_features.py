@@ -11,6 +11,8 @@ import pytest
 from auniqorm.columns import Column, ForeignKey, PrimaryKey
 from auniqorm.models import AUniqORMBase, F, ModelRegistry
 
+from ._helpers import ready
+
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
@@ -31,11 +33,7 @@ class Player(AUniqORMBase):
 
 @pytest.fixture
 async def seeded(db):
-    ModelRegistry.register(Team)
-    ModelRegistry.register(Player)
-    ModelRegistry.bind(db)
-    await Team.create_table()
-    await Player.create_table()
+    await ready(db, Team, Player, register=True)
 
     t1 = await Team(name="Alpha").insert()
     t2 = await Team(name="Beta").insert()

@@ -23,16 +23,22 @@ class TestDatabaseConnection:
         await db.disconnect()
         assert not db.is_connected
 
-    async def test_protocol_detection(self):
-        assert Database._parse_protocol("postgresql://localhost/db") == "postgresql"
-        assert Database._parse_protocol("postgres://localhost/db") == "postgresql"
-        assert Database._parse_protocol("pg://localhost/db") == "postgresql"
-        assert Database._parse_protocol("sqlite:///path") == "sqlite"
-        assert Database._parse_protocol("mysql://localhost/db") == "mysql"
-        assert Database._parse_protocol("mariadb://localhost/db") == "mysql"
-        assert Database._parse_protocol("cockroachdb://localhost/db") == "postgresql"
-        assert Database._parse_protocol("cockroach://localhost/db") == "postgresql"
-        assert Database._parse_protocol("crdb://localhost/db") == "postgresql"
+    @pytest.mark.parametrize(
+        ("url", "protocol"),
+        [
+            ("postgresql://localhost/db", "postgresql"),
+            ("postgres://localhost/db", "postgresql"),
+            ("pg://localhost/db", "postgresql"),
+            ("sqlite:///path", "sqlite"),
+            ("mysql://localhost/db", "mysql"),
+            ("mariadb://localhost/db", "mysql"),
+            ("cockroachdb://localhost/db", "postgresql"),
+            ("cockroach://localhost/db", "postgresql"),
+            ("crdb://localhost/db", "postgresql"),
+        ],
+    )
+    def test_protocol_detection(self, url, protocol):
+        assert Database._parse_protocol(url) == protocol
 
     async def test_context_manager(self):
         async with Database("sqlite://:memory:") as db:
@@ -107,7 +113,6 @@ class TestModelCRUD:
             sku: str = Column(nullable=False)
 
         await Product.create_table()
-        Product.__database__ = sqlite_db
         p = Product(sku="WDG-001")
         await p.insert()
 
@@ -121,7 +126,6 @@ class TestModelCRUD:
             name: str
 
         await Ghost.create_table()
-        Ghost.__database__ = sqlite_db
         result = await Ghost.get(name="nope")
         assert result is None
 
@@ -131,7 +135,6 @@ class TestModelCRUD:
             label: str = Column(nullable=False)
 
         await Tag.create_table()
-        Tag.__database__ = sqlite_db
         await Tag(label="red").insert()
         await Tag(label="blue").insert()
         await Tag(label="red").insert()
@@ -145,7 +148,6 @@ class TestModelCRUD:
             name: str
 
         await Color.create_table()
-        Color.__database__ = sqlite_db
         await Color(name="r").insert()
         await Color(name="g").insert()
         all_colors = await Color.all()
