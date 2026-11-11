@@ -17,7 +17,7 @@ tokio-postgres = "0.7"
 deadpool-postgres = "0.14"
 postgres-types = { version = "0.2", features = ["with-time-0_3", "with-uuid-1"] }
 mysql_async = { version = "0.37", default-features = false, features = ["default-rustls"] }
-rusqlite = { version = "0.40", features = ["bundled"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
 bytes = "1"
 rmp = "0.8"
 mongodb = { version = "3.9", default-features = false, features = ["compat-3-0-0", "dns-resolver", "rustls-tls"] }
