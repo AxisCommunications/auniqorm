@@ -9,10 +9,14 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
+import multiprocessing
 import threading
 import time
 
-from auniqorm.sync import _SyncRunner
+import pytest
+
+from auniqorm.sync import _SyncRunner, run
 
 
 class TestSyncRunnerStart:
@@ -45,3 +49,46 @@ class TestSyncRunnerStart:
         finally:
             for loop in created:
                 loop.call_soon_threadsafe(loop.stop)
+
+
+@pytest.mark.skipif(
+    "fork" not in multiprocessing.get_all_start_methods(), reason="requires fork"
+)
+@pytest.mark.parametrize("operation", ["run", "iter"])
+def test_sync_runner_after_fork(operation):
+    marker = contextvars.ContextVar("fork_marker", default="clean")
+
+    async def read_marker():
+        return marker.get()
+
+    async def set_marker():
+        marker.set("parent")
+
+    async def iter_marker():
+        yield marker.get()
+
+    run(set_marker())
+    runner = _SyncRunner.get()
+
+    def check_child():
+        if operation == "run":
+            assert run(read_marker()) == "clean"
+        else:
+            assert list(_SyncRunner.get().iter(iter_marker())) == ["clean"]
+        assert _SyncRunner.get() is not runner
+
+    process = multiprocessing.get_context("fork").Process(target=check_child)
+    with _SyncRunner._lock, runner._start_lock:
+        process.start()
+    try:
+        process.join(timeout=5)
+        assert not process.is_alive(), "forked child hung using the sync runner"
+        assert process.exitcode == 0
+    finally:
+        if process.is_alive():
+            process.terminate()
+            process.join(timeout=5)
+        process.close()
+
+    assert _SyncRunner.get() is runner
+    assert run(read_marker()) == "parent"

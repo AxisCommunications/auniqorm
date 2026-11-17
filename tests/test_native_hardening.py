@@ -43,31 +43,16 @@ from auniqorm.drivers import postgresql_native as pg_mod  # noqa: E402
 from auniqorm.drivers.registry import DriverRegistry  # noqa: E402
 from auniqorm.exceptions import ConnectionError, DriverNotFoundError  # noqa: E402
 
-PG_URL = "postgresql://bench:bench@localhost:5432/bench"
-MYSQL_URL = "mysql://bench:bench@localhost:3306/bench"
+from ._services import MYSQL_URL, PG_URL  # noqa: E402
+
 PG_TLS_URL = os.getenv("AUNIQORM_TEST_PG_TLS_URL", "")
 PG_TLS_CA = os.getenv("AUNIQORM_TEST_PG_TLS_CA")
 OTHER_CA = os.getenv("AUNIQORM_TEST_OTHER_CA")
 MYSQL_NOTLS_URL = os.getenv("AUNIQORM_TEST_MYSQL_NOTLS_URL", "")
 
 
-def _reachable(connect, url: str) -> bool:
-    async def check() -> bool:
-        try:
-            await (await connect(url)).close()
-        except Exception:
-            return False
-        return True
-
-    return asyncio.run(check())
-
-
-needs_pg = pytest.mark.skipif(
-    not _reachable(native.connect_pg, PG_URL), reason="requires Postgres at :5432"
-)
-needs_mysql = pytest.mark.skipif(
-    not _reachable(native.connect_mysql, MYSQL_URL), reason="requires MySQL at :3306"
-)
+needs_pg = pytest.mark.needs_pg
+needs_mysql = pytest.mark.needs_mysql
 needs_pg_tls = pytest.mark.skipif(
     not (PG_TLS_URL and PG_TLS_CA and OTHER_CA), reason="needs a TLS PostgreSQL"
 )

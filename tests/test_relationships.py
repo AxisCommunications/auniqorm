@@ -11,6 +11,8 @@ import pytest
 from auniqorm.columns import ForeignKey, PrimaryKey
 from auniqorm.models import AUniqORMBase, ModelRegistry
 
+from ._helpers import ready
+
 # ---------------------------------------------------------------------------
 # Models for relationship testing
 # ---------------------------------------------------------------------------
@@ -36,15 +38,7 @@ class Comment(AUniqORMBase):
 @pytest.fixture
 async def seeded_db(db):
     """Create tables and seed data."""
-    # Re-register models (conftest clears registry before each test)
-    ModelRegistry.register(Author)
-    ModelRegistry.register(Post)
-    ModelRegistry.register(Comment)
-    ModelRegistry.bind(db)
-
-    await Author.create_table()
-    await Post.create_table()
-    await Comment.create_table()
+    await ready(db, Author, Post, Comment, register=True)
 
     alice = await Author(name="Alice").insert()
     bob = await Author(name="Bob").insert()
