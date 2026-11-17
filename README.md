@@ -142,6 +142,11 @@ with SyncDatabase("sqlite:///app.db") as db:
 model's classmethods and instances; `run(coro)` is an escape hatch for any
 coroutine the proxies don't cover.
 
+After `fork`, the child resets the inherited sync runner and thread-local
+context, starting its own background loop lazily on the next sync call.
+This does not make inherited database connections, pools, or transactions
+fork-safe; create fresh database connections in each child process.
+
 Note: model instances returned by the sync API are thin proxies, so
 `isinstance(user, User)` is `False`. Use attribute access or `.to_dict()`, and
 reach the underlying instance via `._async` if needed.
