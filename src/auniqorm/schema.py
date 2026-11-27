@@ -40,6 +40,12 @@ def validate_identifier(name: object, kind: str = "identifier", parts: int = 1) 
     raise ValueError(f"Invalid {kind} {name!r}: must match [A-Za-z_][A-Za-z0-9_]*")
 
 
+def quote_identifier(name: object, dialect: str) -> str:
+    """Quote *name* as pandas does: backticks on MySQL, double quotes elsewhere."""
+    q = "`" if dialect == "mysql" else '"'
+    return q + str(name).replace(q, q + q) + q
+
+
 # Python type to db type mapping
 TYPE_MAP: dict[str, dict[type, str]] = {
     "postgresql": {
@@ -239,6 +245,10 @@ class DDLGenerator:
     ) -> str:
         """Generate CREATE INDEX statement."""
         table_name = model.__table_name__
+        for column in columns:
+            validate_identifier(column, "index column")
+        if name is not None:
+            validate_identifier(name, "index name")
         index_name = name or f"idx_{table_name}_{'_'.join(columns)}"
         unique_clause = "UNIQUE " if unique else ""
         columns_sql = ", ".join(columns)
@@ -478,7 +488,7 @@ class SchemaDiff:
 
         # Tables to drop (exist in DB but no model) — generate but flag
         for table_name in sorted(live_tables - model_tables):
-            sql = f"DROP TABLE {table_name}"
+            sql = f"DROP TABLE {quote_identifier(table_name, self._dialect)}"
             table_ops.append(TableDiff(table=table_name, action="drop", sql=sql))
 
         # Column-level diffs for tables that exist in both
@@ -512,7 +522,8 @@ class SchemaDiff:
 
             # Columns to drop
             for col_name in sorted(live_field_names - model_fields):
-                sql = f"ALTER TABLE {table_name} DROP COLUMN {col_name}"
+                quoted = quote_identifier(col_name, self._dialect)
+                sql = f"ALTER TABLE {table_name} DROP COLUMN {quoted}"
                 column_ops.append(
                     ColumnDiff(
                         table=table_name, column=col_name, action="drop", sql=sql

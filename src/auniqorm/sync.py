@@ -46,6 +46,7 @@ import asyncio
 import concurrent.futures
 import contextvars
 import inspect
+import os
 import threading
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -82,6 +83,7 @@ class _SyncRunner:
     def __init__(self) -> None:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
+        self._start_lock = threading.Lock()
 
     @classmethod
     def get(cls) -> _SyncRunner:
@@ -92,12 +94,13 @@ class _SyncRunner:
         return cls._instance
 
     def _start(self) -> None:
-        if self._loop is None or self._loop.is_closed():
-            self._loop = asyncio.new_event_loop()
-            self._thread = threading.Thread(
-                target=self._loop.run_forever, daemon=True, name="auniqorm-sync"
-            )
-            self._thread.start()
+        with self._start_lock:
+            if self._loop is None or self._loop.is_closed():
+                self._loop = asyncio.new_event_loop()
+                self._thread = threading.Thread(
+                    target=self._loop.run_forever, daemon=True, name="auniqorm-sync"
+                )
+                self._thread.start()
 
     def run(self, coro: Coroutine[Any, Any, _T]) -> _T:
         """Submit a coroutine and block until it completes.
@@ -144,6 +147,17 @@ class _SyncRunner:
                 yield self.run(_next())
             except StopAsyncIteration:
                 return
+
+
+def _reset_after_fork() -> None:
+    global _thread_state
+    _SyncRunner._instance = None
+    _SyncRunner._lock = threading.Lock()
+    _thread_state = threading.local()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(after_in_child=_reset_after_fork)
 
 
 def run[T](coro: Coroutine[Any, Any, T]) -> T:

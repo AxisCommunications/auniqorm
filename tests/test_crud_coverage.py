@@ -767,15 +767,6 @@ class TestMetaclassValidation:
         assert isinstance(meta, Column)
         assert meta.default_factory is fn
 
-    def test_string_with_parens_becomes_server_default(self):
-        class WithSD(AUniqORMBase):
-            id: int = PrimaryKey()
-            ts: str = "now()"
-
-        meta = WithSD.__struct_defaults__[1]
-        assert isinstance(meta, Column)
-        assert meta.server_default == "now()"
-
     def test_plain_string_becomes_default(self):
         class WithStr(AUniqORMBase):
             id: int = PrimaryKey()

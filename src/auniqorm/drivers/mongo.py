@@ -36,6 +36,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, unquote, urlparse, urlsplit, urlunsplit
 
+from auniqorm.collection import MAX_BATCH_SIZE
 from auniqorm.drivers import BaseDriver
 from auniqorm.exceptions import QueryError
 
@@ -57,6 +58,38 @@ except ImportError:
     auniqorm_native = None
 
 logger = logging.getLogger("auniqorm")
+
+# MongoDB's own limits: 16 MiB per document and 100 nested levels.
+_MAX_JSON_BYTES = 16 * 1024 * 1024
+_MAX_NESTING = 100
+
+
+def _check_batch_size(value: Any) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise QueryError("MongoDB batch_size must be an integer")
+    if not 1 <= value <= MAX_BATCH_SIZE:
+        raise QueryError(f"MongoDB batch_size must be between 1 and {MAX_BATCH_SIZE}")
+
+
+def _nesting_depth(value: Any) -> int:
+    """Return the container nesting depth of *value* without recursing."""
+    deepest = 0
+    stack = [(value, 0)]
+    while stack:
+        item, depth = stack.pop()
+        if isinstance(item, dict):
+            children = item.values()
+        elif isinstance(item, list):
+            children = item
+        else:
+            continue
+        depth += 1
+        deepest = max(deepest, depth)
+        if deepest > _MAX_NESTING:
+            return deepest
+        stack.extend((child, depth) for child in children)
+    return deepest
+
 
 # Codec options PyMongo applies while encoding and decoding BSON in Python. The
 # Rust client only transports raw BSON, and rejects these URI options.
@@ -217,7 +250,10 @@ def _native_url(url: str, options: Mapping[str, Any] | None = None) -> str | Non
         if "@" in netloc or "username" not in credentials:
             unsupported.append("username/password")
         else:
-            netloc = ":".join(credentials.values()) + "@" + netloc
+            userinfo = credentials["username"]
+            if "password" in credentials:
+                userinfo += ":" + credentials["password"]
+            netloc = userinfo + "@" + netloc
     if unsupported:
         logger.info(
             "Native MongoDB client disabled (PyMongo handles all operations): "
@@ -394,14 +430,28 @@ class MongoDriver(BaseDriver):
 
     @staticmethod
     def _command(query: str, values: list[Any] | None) -> dict[str, Any]:
+        if isinstance(query, str | bytes) and len(query) > _MAX_JSON_BYTES:
+            raise QueryError(
+                f"MongoDB operation is too large (limit {_MAX_JSON_BYTES} bytes)"
+            )
         try:
             command = json.loads(query)
+        except RecursionError as exc:
+            raise QueryError(
+                f"MongoDB operation is nested deeper than {_MAX_NESTING} levels"
+            ) from exc
         except (TypeError, json.JSONDecodeError) as exc:
             raise QueryError(
                 "MongoDB queries must be JSON operation documents"
             ) from exc
         if not isinstance(command, dict) or "operation" not in command:
             raise QueryError("MongoDB query requires an 'operation' field")
+        if _nesting_depth(command) > _MAX_NESTING:
+            raise QueryError(
+                f"MongoDB operation is nested deeper than {_MAX_NESTING} levels"
+            )
+        if "batch_size" in command:
+            _check_batch_size(command["batch_size"])
         if values is not None:
             command.setdefault("values", values)
         return command
@@ -420,10 +470,23 @@ class MongoDriver(BaseDriver):
 
     def _kwargs(self, command: dict[str, Any], *allowed: str) -> dict[str, Any]:
         values = command.get("values")
-        kwargs = dict(values) if isinstance(values, dict) else {}
+        kwargs: dict[str, Any] = {}
+        if isinstance(values, dict):
+            for key in values:
+                if key not in allowed:
+                    raise QueryError(
+                        f"Unsupported MongoDB option {key!r} for "
+                        f"{command.get('operation')}; allowed: {', '.join(allowed)}"
+                    )
+                if key in command:
+                    raise QueryError(
+                        f"MongoDB option {key!r} is given both in the operation "
+                        "and in values"
+                    )
+            kwargs.update(values)
         for key in allowed:
             if key in command:
-                kwargs.setdefault(key, command[key])
+                kwargs[key] = command[key]
         if kwargs.get("sort") is not None:
             kwargs["sort"] = list(_sort_document(kwargs["sort"]).items())
         return kwargs
@@ -784,6 +847,7 @@ class MongoDriver(BaseDriver):
         The native cursor prefetches the next batches while the caller
         processes the current one.
         """
+        _check_batch_size(batch_size)
         if not self._native_find(command):
             async for batch in self._iterate_pymongo(command, batch_size):
                 yield batch

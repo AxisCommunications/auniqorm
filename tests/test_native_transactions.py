@@ -14,32 +14,15 @@ stack: ``postgresql://bench:bench@localhost:5432/bench``).
 
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
-auniqorm_native = pytest.importorskip("auniqorm_native")
+pytest.importorskip("auniqorm_native")
 
 from auniqorm.drivers.postgresql_native import PostgresNativeDriver  # noqa: E402
 
-PG_URL = "postgresql://bench:bench@localhost:5432/bench"
+from ._services import PG_URL  # noqa: E402
 
-
-def _pg_available() -> bool:
-    async def _check() -> bool:
-        try:
-            engine = await auniqorm_native.connect_pg(PG_URL)
-        except Exception:
-            return False
-        await engine.close()
-        return True
-
-    return asyncio.run(_check())
-
-
-pytestmark = pytest.mark.skipif(
-    not _pg_available(), reason="requires a reachable Postgres at localhost:5432"
-)
+pytestmark = pytest.mark.needs_pg
 
 
 @pytest.fixture
