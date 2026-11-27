@@ -36,7 +36,7 @@ database-behavior changes in the README when they affect users.
 
 Do not include credentials, private endpoints, customer data, or other
 confidential information in issues, commits, tests, or pull requests. Report
-security issues privately as described in [SECURITY.md](SECURITY.md).
+security issues privately as described in the [security policy](https://github.com/AxisCommunications/auniqorm/security/policy).
 
 By contributing, you agree that your contributions are licensed under the
 [MIT License](LICENSE).

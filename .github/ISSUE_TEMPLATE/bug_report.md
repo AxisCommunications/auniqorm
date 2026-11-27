@@ -20,4 +20,4 @@ labels: bug
 - Operating system:
 
 Do not include credentials, tokens, private endpoints, or customer data. Report
-security vulnerabilities privately as described in `SECURITY.md`.
+security vulnerabilities privately as described in the [security policy](https://github.com/AxisCommunications/auniqorm/security/policy).
