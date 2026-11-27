@@ -46,6 +46,7 @@ import asyncio
 import concurrent.futures
 import contextvars
 import inspect
+import os
 import threading
 from collections.abc import AsyncIterator, Coroutine, Iterator
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -146,6 +147,17 @@ class _SyncRunner:
                 yield self.run(_next())
             except StopAsyncIteration:
                 return
+
+
+def _reset_after_fork() -> None:
+    global _thread_state
+    _SyncRunner._instance = None
+    _SyncRunner._lock = threading.Lock()
+    _thread_state = threading.local()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(after_in_child=_reset_after_fork)
 
 
 def run[T](coro: Coroutine[Any, Any, T]) -> T:
