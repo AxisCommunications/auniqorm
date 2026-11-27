@@ -23,6 +23,7 @@ import asyncio
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
+from auniqorm._files import create_private_file
 from auniqorm.drivers import BaseDriver
 from auniqorm.exceptions import QueryError
 
@@ -78,7 +79,9 @@ class SQLiteNativeDriver(BaseDriver):
 
     async def connect(self) -> None:
         if self._engine is None:
-            self._engine = auniqorm_native.connect_sqlite(self._get_db_path())
+            db_path = self._get_db_path()
+            create_private_file(db_path)
+            self._engine = auniqorm_native.connect_sqlite(db_path)
 
     async def disconnect(self) -> None:
         if self._engine is not None:

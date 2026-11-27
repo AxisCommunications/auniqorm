@@ -67,8 +67,13 @@ struct ResultSet {
     rows: Vec<Vec<Cell>>,
 }
 
-/// Run a query and collect the whole result set. Off-GIL (no Python touched).
-fn run_query(conn: &Connection, sql: &str, params: &[Value]) -> Result<ResultSet, PyErr> {
+/// Run a query and collect up to `limit` rows (all when `None`). Off-GIL.
+fn run_query(
+    conn: &Connection,
+    sql: &str,
+    params: &[Value],
+    limit: Option<usize>,
+) -> Result<ResultSet, PyErr> {
     let mut stmt = conn.prepare_cached(sql).map_err(err)?;
     let columns: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
     let ncol = columns.len();
@@ -88,6 +93,9 @@ fn run_query(conn: &Connection, sql: &str, params: &[Value]) -> Result<ResultSet
             });
         }
         out.push(cells);
+        if limit.is_some_and(|max| out.len() >= max) {
+            break;
+        }
     }
     Ok(ResultSet { columns, rows: out })
 }
@@ -211,7 +219,7 @@ impl SqliteEngine {
         let conn = self.conn.clone();
         let rs = py.detach(move || {
             let guard = conn.lock().map_err(|_| err("sqlite connection poisoned"))?;
-            run_query(&guard, &sql, &values)
+            run_query(&guard, &sql, &values, None)
         })?;
         resultset_to_pylist(py, &rs)
     }
@@ -226,7 +234,7 @@ impl SqliteEngine {
         let conn = self.conn.clone();
         let rs = py.detach(move || {
             let guard = conn.lock().map_err(|_| err("sqlite connection poisoned"))?;
-            run_query(&guard, &sql, &values)
+            run_query(&guard, &sql, &values, Some(1))
         })?;
         match rs.rows.first() {
             Some(cells) => Ok(row_to_pydict(py, &rs, cells)?.into_any().unbind()),
@@ -244,7 +252,7 @@ impl SqliteEngine {
         let conn = self.conn.clone();
         let buf = py.detach(move || {
             let guard = conn.lock().map_err(|_| err("sqlite connection poisoned"))?;
-            let rs = run_query(&guard, &sql, &values)?;
+            let rs = run_query(&guard, &sql, &values, None)?;
             encode_msgpack(&rs).map_err(PyRuntimeError::new_err)
         })?;
         Ok(PyBytes::new(py, &buf).into_any().unbind())
@@ -260,7 +268,7 @@ impl SqliteEngine {
         let conn = self.conn.clone();
         let buf = py.detach(move || {
             let guard = conn.lock().map_err(|_| err("sqlite connection poisoned"))?;
-            let rs = run_query(&guard, &sql, &values)?;
+            let rs = run_query(&guard, &sql, &values, Some(1))?;
             match rs.rows.first() {
                 Some(cells) => encode_msgpack_row(&rs.columns, cells)
                     .map(Some)
